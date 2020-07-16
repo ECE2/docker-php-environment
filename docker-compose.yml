@@ -16,6 +16,33 @@ volumes:
 
 services:
 
+  workspace:
+    build:
+      context: ./workspace
+      args:
+        - CHANGE_SOURCE=${CHANGE_SOURCE}
+        - PHP_FPM_VERSION=${PHP_VERSION}
+        - INSTALL_PHPREDIS=${INSTALL_PHPREDIS}
+        - INSTALL_GD=${INSTALL_GD}
+        - INSTALL_OPCACHE=${INSTALL_OPCACHE}
+        - http_proxy
+        - https_proxy
+        - no_proxy
+    volumes:
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+      - ./php-worker/supervisord.d:/etc/supervisord.d
+    extra_hosts:
+      - "dockerhost:${DOCKER_HOST_IP}"
+    tty: true
+    environment:
+      - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
+      - DOCKER_TLS_VERIFY=1
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_CERT_PATH=/certs/client
+    networks:
+      - frontend
+      - backend
+
   php-fpm:
     build:
       context: ./php-fpm
@@ -30,6 +57,7 @@ services:
         - no_proxy
     volumes:
       - ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+      - ./php-fpm/www.conf:/usr/local/etc/php-fpm.d/www.conf
       - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
     expose:
       - "9000"
@@ -37,29 +65,27 @@ services:
       - "dockerhost:${DOCKER_HOST_IP}"
     networks:
       - backend
+    depends_on:
+      - workspace
 
-  ### PHP Worker ############################################
-#  php-worker:
-#    build:
-#      context: ./php-worker
-#      args:
-#        - CHANGE_SOURCE=${CHANGE_SOURCE}
-#        - LARADOCK_PHP_VERSION=${PHP_VERSION}
-#        - INSTALL_GD=${PHP_WORKER_INSTALL_GD}
-#        - INSTALL_ZIP_ARCHIVE=${PHP_WORKER_INSTALL_ZIP_ARCHIVE}
-#        - INSTALL_MYSQL_CLIENT=${PHP_WORKER_INSTALL_MYSQL_CLIENT}
-#        - INSTALL_REDIS=${PHP_WORKER_INSTALL_REDIS}
-#        - PUID=${PHP_WORKER_PUID}
-#        - PGID=${PHP_WORKER_PGID}
-#    volumes:
-#      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
-#      - ./php-worker/supervisord.d:/etc/supervisord.d
-#    depends_on:
-#      - workspace
-#    extra_hosts:
-#      - "dockerhost:${DOCKER_HOST_IP}"
-#    networks:
-#      - backend
+  php-worker:
+    build:
+      context: ./php-worker
+      args:
+        - CHANGE_SOURCE=${CHANGE_SOURCE}
+        - ALPINE_PHP_VERSION=${PHP_VERSION}
+        - INSTALL_REDIS=${INSTALL_PHPREDIS}
+        - PUID=${PHP_WORKER_PUID}
+        - PGID=${PHP_WORKER_PGID}
+    volumes:
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+      - ./php-worker/supervisord.d:/etc/supervisord.d
+    depends_on:
+      - workspace
+    extra_hosts:
+      - "dockerhost:${DOCKER_HOST_IP}"
+    networks:
+      - backend
 
   nginx:
     build:
