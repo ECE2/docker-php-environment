@@ -206,13 +206,13 @@ services:
       args:
         - ELK_VERSION=${ELK_VERSION}
     volumes:
-      - elasticsearch:/usr/share/elasticsearch/data
+      - ${DATA_PATH_HOST}/elasticsearch:/usr/share/elasticsearch/data
     environment:
-      - cluster.name=elasticsearch_cluster
-      - node.name=elasticsearch_node
+#      - cluster.name=elasticsearch_cluster
+#      - node.name=elasticsearch_node
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - cluster.initial_master_nodes=elasticsearch_node
+#      - cluster.initial_master_nodes=elasticsearch_node
     ulimits:
       memlock:
         soft: -1
