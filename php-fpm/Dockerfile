@@ -63,7 +63,6 @@ RUN if [ ${INSTALL_OPCACHE} = true ]; then \
 COPY ./opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 COPY ./lumen.ini /usr/local/etc/php/conf.d
-COPY ./lumen.pool.conf /usr/local/etc/php-fpm.d/
 
 USER root
 

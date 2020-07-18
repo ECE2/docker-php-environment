@@ -1,8 +1,6 @@
 version: '3'
 
 networks:
-  frontend:
-    driver: ${NETWORKS_DRIVER}
   backend:
     driver: ${NETWORKS_DRIVER}
 
@@ -12,6 +10,12 @@ volumes:
   redis:
     driver: ${VOLUMES_DRIVER}
   adminer:
+    driver: ${VOLUMES_DRIVER}
+  elasticsearch:
+    driver: ${VOLUMES_DRIVER}
+  mongo:
+    driver: ${VOLUMES_DRIVER}
+  graylog:
     driver: ${VOLUMES_DRIVER}
 
 services:
@@ -35,12 +39,10 @@ services:
       - "dockerhost:${DOCKER_HOST_IP}"
     tty: true
     environment:
-      - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
       - DOCKER_TLS_VERIFY=1
       - DOCKER_TLS_CERTDIR=/certs
       - DOCKER_CERT_PATH=/certs/client
     networks:
-      - frontend
       - backend
 
   php-fpm:
@@ -75,8 +77,6 @@ services:
         - CHANGE_SOURCE=${CHANGE_SOURCE}
         - ALPINE_PHP_VERSION=${PHP_VERSION}
         - INSTALL_REDIS=${INSTALL_PHPREDIS}
-        - PUID=${PHP_WORKER_PUID}
-        - PGID=${PHP_WORKER_PGID}
     volumes:
       - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
       - ./php-worker/supervisord.d:/etc/supervisord.d
@@ -108,7 +108,6 @@ services:
     depends_on:
       - php-fpm
     networks:
-      - frontend
       - backend
 
   mysql:
@@ -164,5 +163,65 @@ services:
     depends_on:
       - php-fpm
     networks:
-      - frontend
+      - backend
+
+  graylog:
+    build: ./graylog
+    environment:
+      - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD}
+      - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_SHA256_PASSWORD}
+      - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:${GRAYLOG_PORT}/
+    links:
+      - mongo
+      - elasticsearch
+    depends_on:
+      - mongo
+      - elasticsearch
+    ports:
+      - ${GRAYLOG_PORT}:9000
+      - ${GRAYLOG_SYSLOG_TCP_PORT}:514
+      - ${GRAYLOG_SYSLOG_UDP_PORT}:514/udp
+      - ${GRAYLOG_GELF_TCP_PORT}:12201
+      - ${GRAYLOG_GELF_UDP_PORT}:12201/udp
+    user: graylog
+    volumes:
+      - ${DATA_PATH_HOST}/graylog:/usr/share/graylog/data
+      - ./graylog/config:/usr/share/graylog/data/config
+    networks:
+      - backend
+
+  mongo:
+    build: ./mongo
+    ports:
+      - "${MONGODB_PORT}:27017"
+    volumes:
+      - ${DATA_PATH_HOST}/mongo:/data/db
+      - ${DATA_PATH_HOST}/mongo_config:/data/configdb
+    networks:
+      - backend
+
+  elasticsearch:
+    build:
+      context: ./elasticsearch
+      args:
+        - ELK_VERSION=${ELK_VERSION}
+    volumes:
+      - elasticsearch:/usr/share/elasticsearch/data
+    environment:
+      - cluster.name=elasticsearch_cluster
+      - node.name=elasticsearch_node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - cluster.initial_master_nodes=elasticsearch_node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "${ELASTICSEARCH_HOST_HTTP_PORT}:9200"
+      - "${ELASTICSEARCH_HOST_TRANSPORT_PORT}:9300"
+    networks:
       - backend
