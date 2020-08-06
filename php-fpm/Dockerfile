@@ -60,21 +60,7 @@ RUN if [ ${INSTALL_OPCACHE} = true ]; then \
     docker-php-ext-install opcache \
     && docker-php-ext-enable opcache \
 ;fi
-COPY ./opcache.ini /usr/local/etc/php/conf.d
-
-# install swoole-tracker
-COPY ./swoole-tracker-install.sh /tmp
-ARG INSTALL_SWOOLE_TRACKER=false
-RUN if [ ${INSTALL_SWOOLE_TRACKER} = true ]; then \
-    chmod +x /tmp/swoole-tracker-install.sh && \
-    cd /tmp/ && \
-    ./swoole-tracker-install.sh && \
-    rm /tmp/swoole-tracker-install.sh && \
-    cp /tmp/swoole-tracker/swoole_tracker74.so /usr/local/lib/php/extensions/no-debug-non-zts-20190902/swoole_tracker74.so && \
-    printf '#!/bin/sh\n/opt/swoole/script/php/swoole_php /opt/swoole/node-agent/src/node.php &\nphp-fpm $@' > /opt/swoole/entrypoint.sh && \
-    chmod 755 /opt/swoole/entrypoint.sh && \
-    printf 'extension=swoole_tracker74.so' > /usr/local/etc/php/conf.d/swoole-tracker.ini \
-;fi
+COPY ./opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 COPY ./lumen.ini /usr/local/etc/php/conf.d
 
@@ -82,8 +68,6 @@ USER root
 
 WORKDIR /var/www/html
 
-#CMD ["php-fpm"]
+CMD ["php-fpm"]
 
 EXPOSE 9000
-
-ENTRYPOINT [ "sh", "-x", "/opt/swoole/entrypoint.sh" ]
