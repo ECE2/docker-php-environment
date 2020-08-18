@@ -11,6 +11,7 @@ RUN if [ ${CHANGE_SOURCE} = true ]; then \
 ;fi
 
 ARG PHP_FPM_VERSION
+ENV COMPOSER_VERSION=1.9.1
 
 RUN set -xe \
     && apk update \
@@ -32,6 +33,12 @@ RUN set -xe \
     && docker-php-ext-install \
         zip \
         pdo_mysql
+    # install composer
+    && cd /tmp \
+    && wget https://github.com/composer/composer/releases/download/${COMPOSER_VERSION}/composer.phar \
+    && chmod u+x composer.phar \
+    && mv composer.phar /usr/local/bin/composer \
+    && composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/ \
 
 # install phpredis
 ARG INSTALL_PHPREDIS=false
